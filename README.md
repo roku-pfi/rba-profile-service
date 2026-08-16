@@ -65,6 +65,9 @@ Requires the publisher (and a PDP that writes outbox rows with `login` set).
 
 `ONCE=true` processes one message then exits (tests / smoke).
 
+Image (from polyrepo root): `docker build -f rba-profile-service/Dockerfile -t rba-profile-service:dev .`
+Cluster: `../rba-infra/scripts/k3d-up.sh`.
+
 ## Env
 
 | Variable | Default |
@@ -88,5 +91,5 @@ Requires the publisher (and a PDP that writes outbox rows with `login` set).
 
 ## Status
 
-Phase 4 thin slice. Remaining: DLQ, metrics, k8s Deployment. Roadmap:
-`../docs/plans/status.md`.
+Phase 4 thin slice. k8s Deployment via `../rba-infra` Helm (K8s-1). Remaining:
+DLQ. Roadmap: `../docs/plans/status.md`.
