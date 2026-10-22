@@ -58,6 +58,7 @@ class ProfileUpdater:
                 ProfileHistoryRow(
                     event_id=event.event_id,
                     user_id=event.user_id,
+                    tenant_id=event.tenant_id,
                     application_id=event.application_id,
                     login=event.login.model_dump(mode="json"),
                     features=event.features.model_dump() if event.features else None,

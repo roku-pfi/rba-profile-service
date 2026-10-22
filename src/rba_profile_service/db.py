@@ -30,6 +30,7 @@ class ProfileHistoryRow(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     event_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False, index=True)
     user_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     application_id: Mapped[str] = mapped_column(String(128), nullable=False)
     login: Mapped[dict] = mapped_column(JSON, nullable=False)
     features: Mapped[dict | None] = mapped_column(JSON, nullable=True)
