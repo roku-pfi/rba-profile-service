@@ -1,4 +1,4 @@
-"""Seed a usual home ProfileState for the demo user (Demo-2).
+"""Seed a usual home ProfileState for the demo users (Demo-2).
 
 Uses ``rba_features.update_profile`` so the Redis blob matches online scoring.
 ``SET NX`` so a live history is never overwritten.
@@ -19,7 +19,8 @@ logger = logging.getLogger(__name__)
 HOME_IP = "203.0.113.10"
 HOME_ASN = "7303"
 HOME_COUNTRY = "AR"
-DEFAULT_USER_ID = "usr_demo"
+# Roku Bank's Martín (ADR-0033 renamed the seeded users).
+DEFAULT_USER_ID = "usr_rb_martin"
 
 _COMBOS = (
     ("desktop", "macOS", "Chrome"),

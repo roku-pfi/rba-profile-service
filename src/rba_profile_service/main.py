@@ -11,9 +11,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from rba_profile_service.config import Settings, get_settings
-from rba_profile_service.db import Base
 from rba_profile_service.handler import ProfileUpdater
-from rba_profile_service.seed import seed_home_profile
+from rba_profile_service.init import initialise
 
 logger = logging.getLogger(__name__)
 
@@ -23,16 +22,13 @@ def run(settings: Settings | None = None) -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
     engine = create_engine(settings.database_url, future=True)
-    Base.metadata.create_all(engine)
+    if settings.init_on_startup:
+        initialise(settings, engine)
     factory = sessionmaker(bind=engine, expire_on_commit=False, future=True)
     updater = ProfileUpdater(
         redis_url=settings.redis_url,
         key_prefix=settings.redis_key_prefix,
         session_factory=factory,
-    )
-    seed_home_profile(
-        redis_url=settings.redis_url,
-        key_prefix=settings.redis_key_prefix,
     )
 
     params = pika.URLParameters(settings.rabbitmq_url)

@@ -17,6 +17,15 @@ class Settings(BaseSettings):
     queue_name: str = "rba.profile.decision-made.v1"
     routing_key: str = DECISION_MADE_CHANNEL
     once: bool = False  # process one message then exit (tests)
+    # C-4: create tables and seed home profiles at startup (compose, k3d).
+    # Off where `python -m rba_profile_service.init` runs as a Job first.
+    init_on_startup: bool = True
+    # Users given a usual home history (the TEST-NET home, ADR-0022) so the
+    # local walkthrough's first login can ALLOW. The two Martíns (ADR-0035).
+    seed_profile_user_ids: str = "usr_rb_martin,usr_kz_martin"
+
+    def profile_user_ids(self) -> list[str]:
+        return [part.strip() for part in self.seed_profile_user_ids.split(",") if part.strip()]
 
 
 @lru_cache
