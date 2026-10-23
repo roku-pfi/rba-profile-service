@@ -42,7 +42,11 @@ class ProfileUpdater:
 
         A decision that asked for a step-up is not learned here: it waits for
         LoginConfirmedEvent, so an abandoned step-up teaches nothing (ADR-0042).
+        A simulated login (presenter override, ADR-0032) teaches nothing either.
         """
+        if event.simulated:
+            logger.info("event_id=%s simulated: not learned", event.event_id)
+            return self._apply(event.event_id, learn=None)
         if event.login is None:
             logger.warning(
                 "event_id=%s missing login snapshot — cannot update profile",

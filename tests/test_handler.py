@@ -109,6 +109,12 @@ def test_a_step_up_is_learned_only_when_passed() -> None:
     assert json.loads(fake.data["rba:profile:usr_lucas"])["login_count"] == 1
 
 
+def test_a_simulated_login_is_never_learned() -> None:
+    updater, fake, _ = _updater()
+    assert updater.handle(_event().model_copy(update={"simulated": True})) is False
+    assert "rba:profile:usr_lucas" not in fake.data
+
+
 def test_a_blocked_login_is_never_learned_and_a_failure_only_counts() -> None:
     updater, fake, _ = _updater()
     assert updater.handle(_event().model_copy(update={"enforced_action": Action.BLOCK})) is False
