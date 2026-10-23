@@ -1,4 +1,4 @@
-"""Consume DecisionMade from RabbitMQ and update profiles."""
+"""Consume DecisionMade / LoginConfirmed from RabbitMQ and update profiles."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import json
 import logging
 
 import pika
-from rba_contracts import DecisionMadeEvent
+from rba_contracts import DecisionMadeEvent, LoginConfirmedEvent
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -29,6 +29,7 @@ def run(settings: Settings | None = None) -> None:
         redis_url=settings.redis_url,
         key_prefix=settings.redis_key_prefix,
         session_factory=factory,
+        population_key=settings.redis_population_key,
     )
 
     params = pika.URLParameters(settings.rabbitmq_url)
@@ -36,17 +37,20 @@ def run(settings: Settings | None = None) -> None:
     ch = conn.channel()
     ch.exchange_declare(exchange=settings.exchange_name, exchange_type="topic", durable=True)
     ch.queue_declare(queue=settings.queue_name, durable=True)
-    ch.queue_bind(
-        queue=settings.queue_name,
-        exchange=settings.exchange_name,
-        routing_key=settings.routing_key,
-    )
+    for routing_key in (settings.routing_key, settings.confirmed_routing_key):
+        ch.queue_bind(
+            queue=settings.queue_name,
+            exchange=settings.exchange_name,
+            routing_key=routing_key,
+        )
     ch.basic_qos(prefetch_count=1)
 
     def _on_message(channel, method, _properties, body: bytes) -> None:
         try:
-            event = DecisionMadeEvent.model_validate_json(body)
-            updater.handle(event)
+            if method.routing_key == settings.confirmed_routing_key:
+                updater.handle_confirmed(LoginConfirmedEvent.model_validate_json(body))
+            else:
+                updater.handle(DecisionMadeEvent.model_validate_json(body))
             channel.basic_ack(delivery_tag=method.delivery_tag)
             if settings.once:
                 channel.stop_consuming()

@@ -25,6 +25,7 @@ def initialise(settings: Settings, engine: Engine | None = None) -> None:
             redis_url=settings.redis_url,
             key_prefix=settings.redis_key_prefix,
             user_id=user_id,
+            population_key=settings.redis_population_key,
         )
 
 
