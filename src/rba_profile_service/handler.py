@@ -11,7 +11,7 @@ from uuid import UUID
 import redis
 from rba_contracts import DecisionMadeEvent, LoginConfirmedEvent, LoginEventSnapshot
 from rba_features.features import learn_at_decision, update_profile
-from rba_features.population import TOTAL_FIELD, population_fields
+from rba_features.population import learn_population
 from rba_features.profile import profile_from_dict, profile_to_dict
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -98,8 +98,9 @@ class ProfileUpdater:
             self._redis.set(self._key(user_id), json.dumps(profile_to_dict(updated)))
             if login.login_successful:
                 # A learned login is part of the deployment's population.
-                for field in [*population_fields(event), TOTAL_FIELD]:
-                    self._redis.hincrby(self._population_key, field, 1)
+                learn_population(
+                    event, lambda field, n: self._redis.hincrby(self._population_key, field, n)
+                )
 
             session.add(
                 ProfileHistoryRow(

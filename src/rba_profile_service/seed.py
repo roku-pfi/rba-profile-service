@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 import redis
 from rba_features.features import update_profile
-from rba_features.population import TOTAL_FIELD, population_fields
+from rba_features.population import learn_population
 from rba_features.profile import ProfileState, profile_to_dict
 
 logger = logging.getLogger(__name__)
@@ -78,11 +78,8 @@ def seed_home_profile(
     wrote = bool(client.set(key, payload, nx=True))
     if wrote:
         if population_key:
-            pipe = client.pipeline(transaction=False)
             for event in home_events():
-                for field in [*population_fields(event), TOTAL_FIELD]:
-                    pipe.hincrby(population_key, field, 1)
-            pipe.execute()
+                learn_population(event, lambda field, n: client.hincrby(population_key, field, n))
         logger.info("seeded home profile key=%s", key)
     else:
         logger.info("home profile already present key=%s", key)

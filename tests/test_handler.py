@@ -33,9 +33,10 @@ class _DictRedis:
     def set(self, key: str, value: str) -> None:
         self.data[key] = value
 
-    def hincrby(self, key: str, field: str, amount: int) -> None:
+    def hincrby(self, key: str, field: str, amount: int) -> int:
         bucket = self.hashes.setdefault(key, {})
         bucket[field] = bucket.get(field, 0) + amount
+        return bucket[field]
 
 
 def _updater() -> tuple[ProfileUpdater, _DictRedis, sessionmaker]:
@@ -136,3 +137,27 @@ def test_only_learned_logins_join_the_population() -> None:
     updater.handle(_event())
     population = fake.hashes["rba:population"]
     assert population["_total"] == 1 and population["country=AR"] == 1
+    assert population["h:network:"] == 1 and population["d:network:"] == 1  # hierarchical (0.4.0)
+
+
+def test_rebuild_replays_history_into_hierarchical_profiles(monkeypatch) -> None:
+    """ADR-0043: profiles written before freeman-0.4.0 are rebuilt from profile_history."""
+    import rba_profile_service.rebuild as rebuild_mod
+    from rba_profile_service.config import Settings
+
+    updater, fake, factory = _updater()
+    updater.handle(_event())
+    updater.handle(_event())
+
+    class _Fake(_DictRedis):
+        def delete(self, key):
+            self.hashes.pop(key, None)
+
+    store = _Fake()
+    monkeypatch.setattr(rebuild_mod.redis.Redis, "from_url", staticmethod(lambda *a, **k: store))
+    monkeypatch.setattr(rebuild_mod, "create_engine", lambda *a, **k: factory.kw["bind"])
+    counts = rebuild_mod.rebuild(Settings(seed_profile_user_ids=""))
+    profile = json.loads(store.data["rba:profile:usr_lucas"])
+    assert counts == {"usr_lucas": 2}
+    assert profile["hier_counts"]["network"][""] == 2
+    assert store.hashes["rba:population"]["h:network:"] == 2
