@@ -21,5 +21,19 @@ def test_the_seeded_users_are_the_tenant_cast() -> None:
     from rba_profile_service.config import Settings
     from rba_profile_service.seed import DEFAULT_USER_ID
 
-    assert Settings(_env_file=None).profile_user_ids() == ["usr_rb_martin", "usr_kz_martin"]
+    assert Settings(_env_file=None).profile_seeds() == [
+        ("roku-bank", "usr_rb_martin"),
+        ("kaze-labs", "usr_kz_martin"),
+    ]
     assert DEFAULT_USER_ID == "usr_rb_martin"
+
+
+def test_a_seed_without_its_tenant_is_refused() -> None:
+    """ADR-0046: a seeded history must know which tenant's population it joins."""
+    import pytest
+
+    from rba_profile_service.config import Settings
+
+    assert Settings(_env_file=None, seed_profile_user_ids="").profile_seeds() == []
+    with pytest.raises(ValueError):
+        Settings(_env_file=None, seed_profile_user_ids="usr_rb_martin").profile_seeds()

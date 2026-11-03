@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import json
 from datetime import datetime, timezone
 from uuid import uuid4, uuid5
@@ -141,7 +142,9 @@ def test_only_learned_logins_join_the_population() -> None:
     assert fake.hashes == {}
 
     updater.handle(_event())
-    population = fake.hashes["rba:population"]
+    # ADR-0046: the login joins its own tenant's population, and no other.
+    assert set(fake.hashes) == {"rba:population:kaze-labs"}
+    population = fake.hashes["rba:population:kaze-labs"]
     assert population["_total"] == 1 and population["country=AR"] == 1
     assert population["h:network:"] == 1 and population["d:network:"] == 1  # hierarchical (0.4.0)
 
@@ -156,14 +159,22 @@ def test_rebuild_replays_history_into_hierarchical_profiles(monkeypatch) -> None
     updater.handle(_event())
 
     class _Fake(_DictRedis):
-        def delete(self, key):
-            self.hashes.pop(key, None)
+        def delete(self, *keys):
+            for key in keys:
+                self.hashes.pop(key, None)
+
+        def scan_iter(self, match):
+            return [k for k in list(self.hashes) if fnmatch.fnmatch(k, match)]
 
     store = _Fake()
+    store.hashes["rba:population"] = {"_total": 99}  # the pre-ADR-0046 global hash
+    store.hashes["rba:population:kaze-labs"] = {"_total": 99}
     monkeypatch.setattr(rebuild_mod.redis.Redis, "from_url", staticmethod(lambda *a, **k: store))
     monkeypatch.setattr(rebuild_mod, "create_engine", lambda *a, **k: factory.kw["bind"])
     counts = rebuild_mod.rebuild(Settings(seed_profile_user_ids=""))
     profile = json.loads(store.data["rba:profile:usr_lucas"])
     assert counts == {"usr_lucas": 2}
     assert profile["hier_counts"]["network"][""] == 2
-    assert store.hashes["rba:population"]["h:network:"] == 2
+    assert set(store.hashes) == {"rba:population:kaze-labs"}
+    assert store.hashes["rba:population:kaze-labs"]["h:network:"] == 2
+    assert store.hashes["rba:population:kaze-labs"]["_total"] == 2

@@ -69,8 +69,8 @@ def seed_home_profile(
 ) -> bool:
     """Return True if the key was written, False if it already existed.
 
-    The seeded logins also count in the deployment's population (ADR-0042),
-    as if they had been learned live.
+    The seeded logins also count in ``population_key``, the user's tenant's
+    population (ADR-0042, ADR-0046), as if they had been learned live.
     """
     client = redis.Redis.from_url(redis_url, decode_responses=True)
     key = f"{key_prefix}{user_id}"

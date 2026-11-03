@@ -12,7 +12,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://rba:rba@localhost:5432/rba_profile"
     redis_url: str = "redis://localhost:6379/0"
     redis_key_prefix: str = "rba:profile:"
-    # ADR-0042: learned-login counts, the PDP's population prior.
+    # ADR-0042: learned-login counts, the PDP's population prior. One hash per
+    # tenant under this base, "<base>:<tenant_id>" (ADR-0046).
     redis_population_key: str = "rba:population"
     rabbitmq_url: str = "amqp://rba:rba@localhost:5672/"
     exchange_name: str = "rba.events"
@@ -26,11 +27,22 @@ class Settings(BaseSettings):
     # Off where `python -m rba_profile_service.init` runs as a Job first.
     init_on_startup: bool = True
     # Users given a usual home history (the TEST-NET home, ADR-0022) so the
-    # local walkthrough's first login can ALLOW. The two Martíns (ADR-0035).
-    seed_profile_user_ids: str = "usr_rb_martin,usr_kz_martin"
+    # local walkthrough's first login can ALLOW. The two Martíns (ADR-0035),
+    # each as "<tenant_id>:<user_id>" so the history joins its tenant's
+    # population (ADR-0046).
+    seed_profile_user_ids: str = "roku-bank:usr_rb_martin,kaze-labs:usr_kz_martin"
 
-    def profile_user_ids(self) -> list[str]:
-        return [part.strip() for part in self.seed_profile_user_ids.split(",") if part.strip()]
+    def profile_seeds(self) -> list[tuple[str, str]]:
+        """(tenant_id, user_id) of every user given a home history."""
+        seeds = []
+        for part in self.seed_profile_user_ids.split(","):
+            tenant_id, sep, user_id = part.strip().partition(":")
+            if not sep or not tenant_id or not user_id:
+                if part.strip():
+                    raise ValueError(f"SEED_PROFILE_USER_IDS entry {part.strip()!r} is not <tenant_id>:<user_id>")
+                continue
+            seeds.append((tenant_id, user_id))
+        return seeds
 
 
 @lru_cache
