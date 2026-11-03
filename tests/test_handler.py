@@ -163,6 +163,9 @@ def test_rebuild_replays_history_into_hierarchical_profiles(monkeypatch) -> None
             for key in keys:
                 self.hashes.pop(key, None)
 
+        def hset(self, key, mapping):
+            self.hashes.setdefault(key, {}).update(mapping)
+
         def scan_iter(self, match):
             return [k for k in list(self.hashes) if fnmatch.fnmatch(k, match)]
 
