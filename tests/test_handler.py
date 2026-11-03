@@ -178,3 +178,21 @@ def test_rebuild_replays_history_into_hierarchical_profiles(monkeypatch) -> None
     assert set(store.hashes) == {"rba:population:kaze-labs"}
     assert store.hashes["rba:population:kaze-labs"]["h:network:"] == 2
     assert store.hashes["rba:population:kaze-labs"]["_total"] == 2
+
+
+def test_a_completed_login_teaches_its_device_a_failed_one_does_not() -> None:
+    """RF-02 (ADR-0047): the device id rides on the login snapshot."""
+    updater, fake, _ = _updater()
+    ok = _event()
+    ok = ok.model_copy(update={"login": ok.login.model_copy(update={"device_id": "dev-lucas"})})
+    failed = _event()
+    failed = failed.model_copy(
+        update={
+            "enforced_action": Action.BLOCK,
+            "login": failed.login.model_copy(update={"device_id": "dev-attacker", "login_successful": False}),
+        }
+    )
+    updater.handle(ok)
+    updater.handle(failed)
+    profile = json.loads(fake.data["rba:profile:usr_lucas"])
+    assert set(profile["known_devices"]) == {"dev-lucas"}
