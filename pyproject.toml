@@ -17,6 +17,7 @@ dependencies = [
     "psycopg[binary]>=3.1",
     "redis>=5.0",
     "pika>=1.3",
+    "prometheus-client>=0.20",
     "rba-features>=0.1.1",
     "rba-contracts>=0.1.1",
 ]

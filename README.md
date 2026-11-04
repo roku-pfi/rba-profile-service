@@ -27,7 +27,7 @@ RabbitMQ  rba.events / rba.decision.made.v1
         → ACK
 ```
 
-Handler failures **nack without requeue** (no DLQ yet). Prefetch = 1.
+Handler failures go to `<queue>.dlq` (dead-letter exchange `rba.events.dlx`); replay them with `python -m rba_event_publisher.dlq replay <queue>` once the cause is fixed. Prefetch = 1. Metrics on :9102 (profile) / :9103 (audit consumer): `rba_events_consumed_total`, `rba_event_lag_seconds`.
 
 `tests/` exists but has no cases yet (thin slice).
 
@@ -91,5 +91,5 @@ Cluster: `../rba-infra/scripts/k3d-up.sh`.
 
 ## Status
 
-Phase 4 thin slice. k8s Deployment via `../rba-infra` Helm (K8s-1). Remaining:
-DLQ. Roadmap: `../docs/plans/status.md`.
+Phase 4 thin slice. k8s Deployment via `../rba-infra` Helm (K8s-1). DLQ and lag metrics done.
+Roadmap: `../docs/plans/status.md`.
