@@ -15,6 +15,7 @@ from rba_profile_service.config import Settings, get_settings
 from rba_profile_service.handler import ProfileUpdater
 from rba_profile_service.init import initialise
 from rba_profile_service.metrics import CONSUMED, observe_lag
+from rba_profile_service.retry import apply_with_retries
 
 logger = logging.getLogger(__name__)
 CONSUMER = "profile"
@@ -71,17 +72,34 @@ def run(settings: Settings | None = None) -> None:
     declare(ch, settings)
     ch.basic_qos(prefetch_count=1)
 
+    def _apply(kind: str, body: bytes):
+        if kind == settings.confirmed_routing_key:
+            event = LoginConfirmedEvent.model_validate_json(body)
+            updater.handle_confirmed(event)
+        else:
+            event = DecisionMadeEvent.model_validate_json(body)
+            updater.handle(event)
+        return event
+
+    def _on_retry(attempt: int, exc: Exception) -> None:
+        logger.warning("handler failed (attempt %d), retrying: %r", attempt, exc)
+        CONSUMED.labels(CONSUMER, "retried").inc()
+
     def _on_message(channel, method, properties, body: bytes) -> None:
         try:
             # The publisher stamps the channel in `type`; a replayed message
             # (rba_event_publisher.dlq) arrives with the queue as routing key.
             kind = properties.type or method.routing_key
-            if kind == settings.confirmed_routing_key:
-                event = LoginConfirmedEvent.model_validate_json(body)
-                updater.handle_confirmed(event)
-            else:
-                event = DecisionMadeEvent.model_validate_json(body)
-                updater.handle(event)
+            # A retry after a half-applied attempt is safe for the history row
+            # (one per event_id); the Valkey profile could count that login
+            # twice, the same as a replay would.
+            event = apply_with_retries(
+                lambda: _apply(kind, body),
+                delays=settings.retry_delays,
+                # Keeps the connection's heartbeats going while it waits.
+                sleep=channel.connection.sleep,
+                on_retry=_on_retry,
+            )
             channel.basic_ack(delivery_tag=method.delivery_tag)
             CONSUMED.labels(CONSUMER, "applied").inc()
             observe_lag(CONSUMER, event.occurred_at)

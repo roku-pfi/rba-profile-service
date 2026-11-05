@@ -8,7 +8,7 @@ from prometheus_client import Counter, Histogram
 
 CONSUMED = Counter(
     "rba_events_consumed_total",
-    "Events taken off the queue, by outcome (applied, or dead-lettered).",
+    "Events taken off the queue, by outcome (applied, dead_lettered), and retries (retried).",
     ["consumer", "outcome"],
 )
 # From the decision to its effect on the profile: journal + relay + queue + handler.

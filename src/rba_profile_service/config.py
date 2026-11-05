@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     # A message the handler cannot apply goes to "<queue_name>.dlq" through
     # this exchange, not away; `python -m rba_event_publisher.dlq` replays it.
     dead_letter_exchange: str = "rba.events.dlx"
+    # Waits, in seconds, between attempts before dead-lettering: a database
+    # or Valkey blip shorter than their sum never reaches the DLQ. Env as
+    # JSON, e.g. RETRY_DELAYS='[1, 5]'; [] dead-letters on the first error.
+    retry_delays: list[float] = [0.5, 2.0, 8.0]
     metrics_port: int = 9102  # Prometheus; 0 turns it off
     routing_key: str = DECISION_MADE_CHANNEL
     # ADR-0042: step-ups are learned when passed. Same queue, so a decision and
